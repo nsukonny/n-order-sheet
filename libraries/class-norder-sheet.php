@@ -89,6 +89,7 @@ class NOrderSheet {
 	public function includes() {
 
 		if ( defined( 'NORDER_SHEET_LIBRARIES_PATH' ) ) {
+			require NORDER_SHEET_LIBRARIES_PATH . 'class-norder-sheet-api.php';
 			require NORDER_SHEET_LIBRARIES_PATH . 'class-norder-sheet-collector.php';
 		}
 

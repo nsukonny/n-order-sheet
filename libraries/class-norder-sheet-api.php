@@ -28,7 +28,7 @@ class NOrderSheet_API {
 	 *
 	 * @since 1.0.0
 	 */
-	private function getClient() {
+	public function getClient() {
 
 		$client = new Google_Client();
 		$client->setApplicationName( 'Google Sheets API PHP Quickstart' );
@@ -76,12 +76,19 @@ class NOrderSheet_API {
                     <a href="<?php echo $authUrl; ?>" target="_blank">Google auth page</a> for get a code and place it
                     here</p>
                 <form action="#" method="post">
-                    <input type="text" name="norder_auth_code" value="" placeholder="Google code here">
-                    <input type="submit" value="Get access">
+                    <input type="text" name="norder_auth_code" value="" class="n-order-settings-input"
+                           placeholder="Google code here">
+                    <input type="submit" value="Get access" class="button button-primary">
                 </form>
 				<?php
-				wp_die();
+				return false;
 			}
+		} else {
+			?>
+            <h2>You allready set access token, so now you can make a sheets in <a
+                        href="<?php echo get_admin_url( null, 'edit.php?post_type=shop_order' ); ?>">Orders
+                    page</a></h2>
+			<?php
 		}
 
 		return $client;
@@ -98,7 +105,11 @@ class NOrderSheet_API {
 	 */
 	public function create_sheet( $order_id ) {
 
-		$client        = $this->getClient();
+		$client = $this->getClient();
+		if ( ! $client ) {
+			wp_die();
+		}
+
 		$this->service = new Google_Service_Sheets( $client );
 
 		$spreadsheet = new Google_Service_Sheets_Spreadsheet( array(
@@ -131,6 +142,8 @@ class NOrderSheet_API {
 		$values         = array(
 			array(
 				'Shop Copy',
+				'',
+				'Print date: ' . date( 'm/d/y H:i' ),
 			),
 			array(
 				'Order Specifications Sheet',
@@ -160,6 +173,13 @@ class NOrderSheet_API {
 				'Specifications',
 			),
 		);
+
+		if ( function_exists( 'wcpdf_get_document' ) ) {
+			$invoice = wcpdf_get_document( 'partial_payment_invoice', $order );
+			if ( $invoice ) {
+				$values[0][1][2] = 'Invoice Number: ' . $invoice->get_number();
+			}
+		}
 
 		$hidden_order_itemmeta = $this->getHiddenFields();
 		$merge_requests[]      = $this->getMergeRequest( 0, 2, 0, 2 );
@@ -310,7 +330,7 @@ class NOrderSheet_API {
 						"startRowIndex"    => 0,
 						"endRowIndex"      => 2,
 						"startColumnIndex" => 0,
-						"endColumnIndex"   => 4
+						"endColumnIndex"   => 2
 					],
 					"cell"  => [
 						"userEnteredFormat" => [
@@ -401,7 +421,7 @@ class NOrderSheet_API {
 						"startRowIndex"    => 9,
 						"endRowIndex"      => $items_count + 9,
 						"startColumnIndex" => 0,
-						"endColumnIndex"   => 2
+						"endColumnIndex"   => 3
 					],
 
 					"top" => [
@@ -432,7 +452,7 @@ class NOrderSheet_API {
 						"startRowIndex"    => $items_count + 9,
 						"endRowIndex"      => $doors_count + $items_count + 9,
 						"startColumnIndex" => 0,
-						"endColumnIndex"   => 2
+						"endColumnIndex"   => 3
 					],
 
 					"bottom" => [

@@ -1,7 +1,23 @@
-.column-n_order_sheet mark {
+.column-n_order_sheet a {
   background-color: #e1c6e0 !important;
 }
-.column-n_order_sheet mark a {
+.column-n_order_sheet a span {
   color: #aa007e;
+}
+.column-n_order_sheet a:hover {
+  background-color: #e1aac4 !important;
+}
+.n-order-settings {
+  background-color: #FFF;
+  border: 1px solid #ccd0d4;
+  margin: 20px auto;
+  padding: 10px 20px 20px 20px;
+}
+.n-order-settings h1 {
+  border-bottom: 1px solid #ccd0d4;
+  padding-bottom: 20px;
+}
+.n-order-settings-input {
+  width: 300px;
 }
 /*# sourceMappingURL=styles.css.map */

@@ -78,26 +78,19 @@ class NOrderSheet_Collector {
 			$order         = wc_get_order( $post->ID );
 			$sheet_created = get_post_meta( $post->ID, 'norder_sheet_url', true );
 			if ( $sheet_created ) { ?>
-                <mark class="order-status status-processing">
-                    <span>
-                        <a href="<?php echo esc_url( $sheet_created ); ?>" target="_blank">
-                            <?php _e( 'View', 'n-order-sheet' ); ?>
-                        </a>
-                    </span>
-                </mark>
+                <a href="<?php echo esc_url( $sheet_created ); ?>" class="order-status status-processing"
+                   target="_blank">
+                    <span><?php _e( 'View', 'n-order-sheet' ); ?></span>
+                </a>
 			<?php } else { ?>
-                <mark class="order-status status-processing">
-                    <span>
-                        <a href="<?php
+                <a href="<?php
+				echo esc_url( add_query_arg( array(
+					'norder_create_sheet_action' => 'create',
+					'order_id'                   => $post->ID
+				) ) ); ?>" class="order-status status-processing" target="_blank">
+                    <span><?php _e( 'Create', 'n-order-sheet' ); ?></span>
+                </a>
 
-                        echo esc_url( add_query_arg( array(
-	                        'norder_create_sheet_action' => 'create',
-	                        'order_id'                   => $post->ID
-                        ) ) ); ?>" target="_blank">
-                            <?php _e( 'Create', 'n-order-sheet' ); ?>
-                        </a>
-                    </span>
-                </mark>
 			<?php }
 		}
 	}
@@ -153,7 +146,7 @@ class NOrderSheet_Collector {
 	 * @param $order_id
 	 */
 	private function redirect_to_sheet( $order_id ) {
-
+        
 	}
 
 }

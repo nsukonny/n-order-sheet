@@ -155,7 +155,24 @@ class NOrderSheet_API {
 		$merge_requests = array();
 		$doors          = array( 1, 2, 3 );
 		$items_count    = 0;
-		$values         = array(
+
+		$client                      = array();
+		$client['full_billing_name'] = $order->get_formatted_billing_full_name();
+		if ( empty( $client['full_billing_name'] ) ) {
+			$client['full_billing_name'] = $order->get_formatted_shipping_full_name();
+		}
+
+		$client['full_shipping_name'] = $order->get_formatted_shipping_full_name();
+		if ( empty( $client['full_shipping_name'] ) ) {
+			$client['full_shipping_name'] = $order->get_formatted_billing_full_name();
+		}
+
+		$client['full_shipping_address'] = $order->get_formatted_shipping_address();
+		if ( empty( $client['full_shipping_address'] ) ) {
+			$client['full_shipping_address'] = $order->get_formatted_billing_address();
+		}
+
+		$values = array(
 			array(
 				'Shop Copy',
 				'',
@@ -166,7 +183,7 @@ class NOrderSheet_API {
 			),
 			array(
 				'Customer',
-				$order->get_formatted_billing_full_name(),
+				$client['full_billing_name'],
 			),
 			array(
 				'Phone',
@@ -174,7 +191,7 @@ class NOrderSheet_API {
 			),
 			array(
 				'Shipping contact',
-				$order->get_formatted_shipping_full_name(),
+				$client['full_shipping_name'],
 			),
 			array(
 				'Shipping phone',
@@ -182,7 +199,7 @@ class NOrderSheet_API {
 			),
 			array(
 				'Shipping Address',
-				strip_tags( $order->get_formatted_shipping_address() ),
+				strip_tags( $client['full_shipping_address'] ),
 			),
 			array(),
 			array(

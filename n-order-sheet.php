@@ -1,11 +1,8 @@
 <?php
 /**
  * Plugin Name: N-Order Sheet
- * Plugin URI: https://nsukonny.ru/n-order-sheet/
  * Description: WooCommerce Extension send order data to google sheets
  * Version: 1.0.0
- * Author: NSukonny
- * Author URI: https://nsukonny.ru
  * Text Domain: n-order-sheet
  * Domain Path: /languages
  * WC requires at least: 3.0.0

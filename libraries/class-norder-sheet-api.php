@@ -24,11 +24,14 @@ class NOrderSheet_API {
 	}
 
 	/**
-	 * Returns an authorized API client.
+	 * Get google client for work with API
 	 *
 	 * @since 1.0.0
+	 *
+	 * @return Google_Client
+	 * @throws \Google\Exception
 	 */
-	public function getClient() {
+	private function getGoogleClient() {
 
 		$client = new Google_Client();
 		$client->setApplicationName( 'Google Sheets API PHP Quickstart' );
@@ -42,6 +45,19 @@ class NOrderSheet_API {
 			$accessToken = json_decode( file_get_contents( $tokenPath ), true );
 			$client->setAccessToken( $accessToken );
 		}
+
+		return $client;
+	}
+
+	/**
+	 * Returns an authorized API client.
+	 *
+	 * @since 1.0.0
+	 * @throws \Google\Exception
+	 */
+	public function getClient() {
+
+		$client = $this->getGoogleClient();
 
 		if ( isset( $_POST['norder_auth_code'] ) && ! empty( $_POST['norder_auth_code'] ) ) {
 			$authCode    = trim( $_POST['norder_auth_code'] );
@@ -506,6 +522,36 @@ class NOrderSheet_API {
 				'_reduced_stock',
 			)
 		);
+	}
+
+	/**
+	 * Check if sheet exist
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param $spreadsheet_id
+	 *
+	 * @return bool
+	 * @throws \Google\Exception
+	 */
+	public function check_sheet( $spreadsheet_id ) {
+
+		$client  = $this->getGoogleClient();
+		$service = new Google_Service_Sheets( $client );
+
+		try {
+			$response = $service->spreadsheets->get( $spreadsheet_id );
+
+			if ( ! $response || empty( $response ) ) {
+				return false;
+			}
+
+		} catch ( Exception $e ) {
+			return false;
+		}
+
+		return true;
+
 	}
 
 }

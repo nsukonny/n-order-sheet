@@ -75,10 +75,13 @@ class NOrderSheet_Collector {
 
 		if ( 'n_order_sheet' === $column ) {
 
-			$order         = wc_get_order( $post->ID );
 			$sheet_created = get_post_meta( $post->ID, 'norder_sheet_url', true );
 			if ( $sheet_created ) { ?>
-                <a href="<?php echo esc_url( $sheet_created ); ?>" class="order-status status-processing"
+                <a href="<?php
+				echo esc_url( add_query_arg( array(
+					'norder_create_sheet_action' => 'view',
+					'order_id'                   => $post->ID
+				) ) ); ?>" class="order-status status-processing"
                    target="_blank">
                     <span><?php _e( 'View', 'n-order-sheet' ); ?></span>
                 </a>
@@ -109,7 +112,7 @@ class NOrderSheet_Collector {
 		if ( 'create' == $_GET['norder_create_sheet_action'] ) {
 			$this->build_order_sheet( $_GET['order_id'] );
 		} else if ( 'view' == $_GET['norder_create_sheet_action'] ) {
-			$this->redirect_to_sheet( $_GET['order_id'] );
+			$this->check_sheet( $_GET['order_id'] );
 		}
 
 	}
@@ -129,13 +132,44 @@ class NOrderSheet_Collector {
 		$spreadsheet_id = $sheet_api->create_sheet( $order_id );
 		$sheet_api->put_order_data( $spreadsheet_id, $order_id );
 		$sheet_link = 'https://docs.google.com/spreadsheets/d/' . esc_attr( $spreadsheet_id ) . '/edit#gid=0';
-		update_post_meta( $order_id, 'norder_sheet_url', $sheet_link );
+		update_post_meta( $order_id, 'norder_sheet_url', $spreadsheet_id );
 		?>
         <script language="JavaScript">
             document.location.href = '<?php echo esc_url( $sheet_link ); ?>';
         </script>
 		<?php
 		wp_die();
+	}
+
+	/**
+	 * Check if sheet is exist, we can redirect to him
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param $order_id
+	 *
+	 * @throws Exception
+	 */
+	private function check_sheet( $order_id ) {
+
+		$spreadsheet_id = get_post_meta( $order_id, 'norder_sheet_url', true );
+
+		if ( $spreadsheet_id ) {
+			$sheet_api = new NOrderSheet_API();
+
+			if ( $sheet_api->check_sheet( $spreadsheet_id ) ) {
+				$sheet_link = 'https://docs.google.com/spreadsheets/d/' . esc_attr( $spreadsheet_id ) . '/edit#gid=0';
+				?>
+                <script language="JavaScript">
+                    document.location.href = '<?php echo esc_url( $sheet_link ); ?>';
+                </script>
+				<?php
+				wp_die();
+			}
+		}
+
+		$this->build_order_sheet( $order_id );
+
 	}
 
 	/**
@@ -146,7 +180,7 @@ class NOrderSheet_Collector {
 	 * @param $order_id
 	 */
 	private function redirect_to_sheet( $order_id ) {
-        
+
 	}
 
 }

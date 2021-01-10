@@ -16,7 +16,12 @@ class NOrderSheet_Activation {
 	 */
 	public static function activation() {
 
-		register_uninstall_hook( __FILE__, array( 'NOrderSheet_Activation', 'uninstall' ) );
+		$plugin_main_file = plugin_dir_path( dirname( __FILE__ ) ) . 'n-order-sheet.php';
+		
+		register_uninstall_hook( $plugin_main_file, array(
+			'NOrderSheet_Activation',
+			'uninstall'
+		) );
 
 	}
 

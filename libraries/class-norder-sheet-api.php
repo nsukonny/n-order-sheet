@@ -478,32 +478,6 @@ class NOrderSheet_API {
 					],
 				]
 			] ),
-			new Google_Service_Sheets_Request( [
-				'updateBorders' => [
-					"range" => [
-						"sheetId"          => 0,
-						"startRowIndex"    => $items_count + 9,
-						"endRowIndex"      => $doors_count + $items_count + 9,
-						"startColumnIndex" => 0,
-						"endColumnIndex"   => 3
-					],
-
-					"bottom" => [
-						"style" => "SOLID",
-						"width" => 3,
-					],
-
-					"right" => [
-						"style" => "SOLID",
-						"width" => 3,
-					],
-
-					"left" => [
-						"style" => "SOLID",
-						"width" => 3,
-					],
-				]
-			] ),
 		];
 
 		$batchUpdateRequest = new Google_Service_Sheets_BatchUpdateSpreadsheetRequest( [

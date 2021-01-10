@@ -31,7 +31,7 @@ class NOrderSheet_API {
 	 * @return Google_Client
 	 * @throws \Google\Exception
 	 */
-	private function getGoogleClient() {
+	private function getGoogleClient( $tokenPath ) {
 
 		$client = new Google_Client();
 		$client->setApplicationName( 'Google Sheets API PHP Quickstart' );
@@ -40,7 +40,6 @@ class NOrderSheet_API {
 		$client->setAccessType( 'offline' );
 		$client->setPrompt( 'select_account consent' );
 
-		$tokenPath = NORDER_SHEET_PLUGIN_PATH . 'token.json';
 		if ( file_exists( $tokenPath ) ) {
 			$accessToken = json_decode( file_get_contents( $tokenPath ), true );
 			$client->setAccessToken( $accessToken );
@@ -57,7 +56,8 @@ class NOrderSheet_API {
 	 */
 	public function getClient() {
 
-		$client = $this->getGoogleClient();
+		$tokenPath = NORDER_SHEET_PLUGIN_PATH . 'token.json';
+		$client    = $this->getGoogleClient( $tokenPath );
 
 		if ( isset( $_POST['norder_auth_code'] ) && ! empty( $_POST['norder_auth_code'] ) ) {
 			$authCode    = trim( $_POST['norder_auth_code'] );

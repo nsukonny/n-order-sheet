@@ -52,7 +52,7 @@ class NOrderSheet_Settings {
 	 * @throws Exception
 	 */
 	public function display_settings() {
-
+	    
 		?>
         <div class="n-order-settings">
             <h1>N Order Sheet Settings</h1>

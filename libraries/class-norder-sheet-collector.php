@@ -130,15 +130,18 @@ class NOrderSheet_Collector {
 
 		$sheet_api      = new NOrderSheet_API();
 		$spreadsheet_id = $sheet_api->create_sheet( $order_id );
-		$sheet_api->put_order_data( $spreadsheet_id, $order_id );
-		$sheet_link = 'https://docs.google.com/spreadsheets/d/' . esc_attr( $spreadsheet_id ) . '/edit#gid=0';
-		update_post_meta( $order_id, 'norder_sheet_url', $spreadsheet_id );
-		?>
-        <script language="JavaScript">
-            document.location.href = '<?php echo esc_url( $sheet_link ); ?>';
-        </script>
-		<?php
-		wp_die();
+		if ( $spreadsheet_id ) {
+			$sheet_api->put_order_data( $spreadsheet_id, $order_id );
+			$sheet_link = 'https://docs.google.com/spreadsheets/d/' . esc_attr( $spreadsheet_id ) . '/edit#gid=0';
+			update_post_meta( $order_id, 'norder_sheet_url', $spreadsheet_id );
+			?>
+            <script language="JavaScript">
+                document.location.href = '<?php echo esc_url( $sheet_link ); ?>';
+            </script>
+			<?php
+			wp_die();
+		}
+
 	}
 
 	/**

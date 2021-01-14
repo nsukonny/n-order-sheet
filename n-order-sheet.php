@@ -33,3 +33,4 @@ norder_sheet_runner();
 
 include_once dirname( __FILE__ ) . '/libraries/class-norder-sheet-activation.php';
 register_activation_hook( __FILE__, array( 'NOrderSheet_Activation', 'activation' ) );
+register_deactivation_hook( __FILE__, array( 'NOrderSheet_Activation', 'deactivate' ) );

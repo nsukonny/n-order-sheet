@@ -31,7 +31,7 @@ class NOrderSheet_API {
 	 * @return Google_Client
 	 * @throws \Google\Exception
 	 */
-	private function getGoogleClient( $tokenPath ) {
+	private function getGoogleClient() {
 
 		$client = new Google_Client();
 		$client->setApplicationName( 'Google Sheets API PHP Quickstart' );
@@ -40,8 +40,8 @@ class NOrderSheet_API {
 		$client->setAccessType( 'offline' );
 		$client->setPrompt( 'select_account consent' );
 
-		if ( file_exists( $tokenPath ) ) {
-			$accessToken = json_decode( file_get_contents( $tokenPath ), true );
+		if ( file_exists( NORDER_SHEET_TOKEN_PATH ) ) {
+			$accessToken = json_decode( file_get_contents( NORDER_SHEET_TOKEN_PATH ), true );
 			$client->setAccessToken( $accessToken );
 		}
 
@@ -56,18 +56,17 @@ class NOrderSheet_API {
 	 */
 	public function getClient() {
 
-		$tokenPath = NORDER_SHEET_PLUGIN_PATH . 'token.json';
-		$client    = $this->getGoogleClient( $tokenPath );
+		$client = $this->getGoogleClient();
 
 		if ( isset( $_POST['norder_auth_code'] ) && ! empty( $_POST['norder_auth_code'] ) ) {
 			$authCode    = trim( $_POST['norder_auth_code'] );
 			$accessToken = $client->fetchAccessTokenWithAuthCode( $authCode );
 			$client->setAccessToken( $accessToken );
 
-			if ( ! file_exists( dirname( $tokenPath ) ) ) {
-				mkdir( dirname( $tokenPath ), 0700, true );
+			if ( ! file_exists( dirname( NORDER_SHEET_TOKEN_PATH ) ) ) {
+				mkdir( dirname( NORDER_SHEET_TOKEN_PATH ), 0700, true );
 			}
-			file_put_contents( $tokenPath, json_encode( $client->getAccessToken() ) );
+			file_put_contents( NORDER_SHEET_TOKEN_PATH, json_encode( $client->getAccessToken() ) );
 
 			if ( array_key_exists( 'error', $accessToken ) ) {
 				throw new Exception( join( ', ', $accessToken ) );
@@ -85,6 +84,11 @@ class NOrderSheet_API {
 		if ( $client->isAccessTokenExpired() ) {
 			if ( $client->getRefreshToken() ) {
 				$client->fetchAccessTokenWithRefreshToken( $client->getRefreshToken() );
+				?>
+                <h2>You allready set access token, so now you can make a sheets in <a
+                            href="<?php echo get_admin_url( null, 'edit.php?post_type=shop_order' ); ?>">Orders
+                        page</a></h2>
+				<?php
 			} else {
 				$authUrl = $client->createAuthUrl();
 				?>

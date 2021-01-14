@@ -59,6 +59,7 @@ class NOrderSheet {
 
 		self::set_up_constant( 'NORDER_SHEET_VERSION', $this->version );
 		self::set_up_constant( 'NORDER_SHEET_PLUGIN_PATH', plugin_dir_path( __FILE__ ) . '../' );
+		self::set_up_constant( 'NORDER_SHEET_TOKEN_PATH', plugin_dir_path( __FILE__ ) . '../token.json' );
 		self::set_up_constant( 'NORDER_SHEET_PLUGIN_URL', plugin_dir_url( __FILE__ ) . '../' );
 		self::set_up_constant( 'NORDER_SHEET_LIBRARIES_PATH', plugin_dir_path( __FILE__ ) );
 		self::set_up_constant( 'NORDER_SHEET_DEBUG', true );

@@ -17,11 +17,8 @@ class NOrderSheet_Activation {
 	public static function activation() {
 
 		$plugin_main_file = plugin_dir_path( dirname( __FILE__ ) ) . 'n-order-sheet.php';
-		
-		register_uninstall_hook( $plugin_main_file, array(
-			'NOrderSheet_Activation',
-			'uninstall'
-		) );
+
+		register_uninstall_hook( $plugin_main_file, array( 'NOrderSheet_Activation', 'uninstall' ) );
 
 	}
 
@@ -34,5 +31,19 @@ class NOrderSheet_Activation {
 
 		delete_post_meta_by_key( 'norder_sheet_url' );
 
+	}
+
+	/**
+	 * Deactivation plugin
+	 *
+	 * @since 1.0.0
+	 */
+	public static function deactivate() {
+
+		delete_post_meta_by_key( 'norder_sheet_url' );
+		if ( file_exists( NORDER_SHEET_TOKEN_PATH ) ) {
+			unlink( NORDER_SHEET_TOKEN_PATH );
+		}
+		
 	}
 }

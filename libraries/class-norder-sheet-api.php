@@ -49,6 +49,22 @@ class NOrderSheet_API {
 	}
 
 	/**
+	 * Delete access token
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return bool
+	 */
+	public static function deleteAccessToken() {
+
+		if ( file_exists( NORDER_SHEET_TOKEN_PATH ) ) {
+			return unlink( NORDER_SHEET_TOKEN_PATH );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Returns an authorized API client.
 	 *
 	 * @since 1.0.0
@@ -108,6 +124,12 @@ class NOrderSheet_API {
             <h2>You allready set access token, so now you can make a sheets in <a
                         href="<?php echo get_admin_url( null, 'edit.php?post_type=shop_order' ); ?>">Orders
                     page</a></h2>
+            <p>
+                <a href="<?php echo get_admin_url( null, 'admin.php?page=n-order-sheet&act=remove_token' ); ?>">Reset
+                    access token</a> |
+                <a href="<?php echo get_admin_url( null, 'admin.php?page=n-order-sheet&act=clear_sheets' ); ?>">Clear
+                    all sheets</a>
+            </p>
 			<?php
 		}
 
@@ -176,18 +198,36 @@ class NOrderSheet_API {
 			$client['full_shipping_address'] = $order->get_formatted_billing_address();
 		}
 
+		$invoice_number = '';
+		if ( function_exists( 'wcpdf_get_document' ) ) {
+			$invoice = wcpdf_get_document( 'invoice', $order->get_id() );
+			if ( $invoice ) {
+				$invoice_number = $invoice->get_number()->formatted_number;
+			}
+		} else {
+			$invoice_number = get_post_meta( $order->get_id(), '_wcpdf_invoice_number', true );
+		}
+
+		$scheduled_ship_date = '';
+
 		$values = array(
 			array(
 				'Shop Copy',
 				'',
-				'Print date: ' . date( 'm/d/y H:i' ),
+				'Print Date:',
+				date( 'm/d/y H:i' )
 			),
 			array(
 				'Order Specifications Sheet',
+				'',
+				'Invoice Number:',
+				$invoice_number,
 			),
 			array(
 				'Customer',
 				$client['full_billing_name'],
+				'Scheduled Ship Date:',
+				$scheduled_ship_date,
 			),
 			array(
 				'Phone',
@@ -210,13 +250,6 @@ class NOrderSheet_API {
 				'Specifications',
 			),
 		);
-
-		if ( function_exists( 'wcpdf_get_document' ) ) {
-			$invoice = wcpdf_get_document( 'partial_payment_invoice', $order );
-			if ( $invoice ) {
-				$values[0][1][2] = 'Invoice Number: ' . $invoice->get_number();
-			}
-		}
 
 		$hidden_order_itemmeta = $this->getHiddenFields();
 		$merge_requests[]      = $this->getMergeRequest( 0, 2, 0, 2 );
@@ -248,6 +281,11 @@ class NOrderSheet_API {
 			}
 		}
 
+		$total_row                  = $items_count + 9;
+		$values[ $total_row ][0]    = 'DOORS SUMMARY';
+		$values[ ++ $total_row ][0] = 'Door Unit Total Dimensions:';
+		$values[ ++ $total_row ][0] = 'Suggested Rough Opening:';
+
 		$body   = new Google_Service_Sheets_ValueRange( [
 			'values' => $values
 		] );
@@ -259,7 +297,7 @@ class NOrderSheet_API {
 		$result = $this->service->spreadsheets_values->update( $spreadsheet_id, $range,
 			$body, $params );
 
-		$this->setColumnWidths( $spreadsheet_id, 300 );
+		$this->setColumnWidths( $spreadsheet_id, 250 );
 		$this->setFontStyles( $spreadsheet_id, $items_count, count( $doors ) );
 
 		//Merge cells
@@ -360,6 +398,7 @@ class NOrderSheet_API {
 	private function setFontStyles( $spreadsheet_id, $items_count, $doors_count ) {
 
 		$requests = [
+			//Title
 			new Google_Service_Sheets_Request( [
 				'repeatCell' => [
 					"range" => [
@@ -382,6 +421,31 @@ class NOrderSheet_API {
 					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
 				]
 			] ),
+			//Print date
+			new Google_Service_Sheets_Request( [
+				'repeatCell' => [
+
+					"range" => [
+						"sheetId"          => 0,
+						"startRowIndex"    => 0,
+						"endRowIndex"      => 3,
+						"startColumnIndex" => 2,
+						"endColumnIndex"   => 3
+					],
+					"cell"  => [
+						"userEnteredFormat" => [
+							"horizontalAlignment" => "RIGHT",
+							"textFormat"          => [
+								"bold"     => true,
+								"fontSize" => 10,
+							]
+						]
+					],
+
+					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
+				]
+			] ),
+			//Font size and position for Customer Details
 			new Google_Service_Sheets_Request( [
 				'repeatCell' => [
 
@@ -428,6 +492,7 @@ class NOrderSheet_API {
 					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
 				]
 			] ),
+			//Specifications title
 			new Google_Service_Sheets_Request( [
 				'repeatCell' => [
 
@@ -451,6 +516,30 @@ class NOrderSheet_API {
 					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
 				]
 			] ),
+			//Specifications attribute values
+			new Google_Service_Sheets_Request( [
+				'repeatCell' => [
+
+					"range" => [
+						"sheetId"          => 0,
+						"startRowIndex"    => 9,
+						"endRowIndex"      => $items_count + 9,
+						"startColumnIndex" => 1,
+						"endColumnIndex"   => 2,
+					],
+					"cell"  => [
+						"userEnteredFormat" => [
+							"horizontalAlignment" => "LEFT",
+							"textFormat"          => [
+								"bold" => false,
+							]
+						]
+					],
+
+					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
+				]
+			] ),
+			//Main border
 			new Google_Service_Sheets_Request( [
 				'updateBorders' => [
 					"range" => [
@@ -458,12 +547,39 @@ class NOrderSheet_API {
 						"startRowIndex"    => 9,
 						"endRowIndex"      => $items_count + 9,
 						"startColumnIndex" => 0,
-						"endColumnIndex"   => 3
+						"endColumnIndex"   => 4
 					],
 
 					"top" => [
 						"style" => "SOLID",
 						"width" => 3,
+					],
+
+					"bottom" => [
+						"style" => "SOLID",
+						"width" => 3,
+					],
+
+					"right" => [
+						"style" => "SOLID",
+						"width" => 3,
+					],
+
+					"left" => [
+						"style" => "SOLID",
+						"width" => 3,
+					],
+				]
+			] ),
+			//Bottom border
+			new Google_Service_Sheets_Request( [
+				'updateBorders' => [
+					"range" => [
+						"sheetId"          => 0,
+						"startRowIndex"    => $items_count + 9,
+						"endRowIndex"      => $items_count + 12,
+						"startColumnIndex" => 0,
+						"endColumnIndex"   => 4
 					],
 
 					"bottom" => [

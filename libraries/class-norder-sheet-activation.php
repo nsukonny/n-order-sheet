@@ -44,6 +44,6 @@ class NOrderSheet_Activation {
 		if ( file_exists( NORDER_SHEET_TOKEN_PATH ) ) {
 			unlink( NORDER_SHEET_TOKEN_PATH );
 		}
-		
+
 	}
 }

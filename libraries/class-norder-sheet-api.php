@@ -104,6 +104,12 @@ class NOrderSheet_API {
                 <h2>You allready set access token, so now you can make a sheets in <a
                             href="<?php echo get_admin_url( null, 'edit.php?post_type=shop_order' ); ?>">Orders
                         page</a></h2>
+                <p>
+                    <a href="<?php echo get_admin_url( null, 'admin.php?page=n-order-sheet&act=remove_token' ); ?>">Reset
+                        access token</a> |
+                    <a href="<?php echo get_admin_url( null, 'admin.php?page=n-order-sheet&act=clear_sheets' ); ?>">Clear
+                        all sheets</a>
+                </p>
 				<?php
 			} else {
 				$authUrl = $client->createAuthUrl();
@@ -177,7 +183,8 @@ class NOrderSheet_API {
 	 */
 	public function put_order_data( $spreadsheet_id, $order_id ) {
 
-		$order          = wc_get_order( $order_id );
+		$order = wc_get_order( $order_id );
+
 		$merge_requests = array();
 		$doors          = array( 1, 2, 3 );
 		$items_count    = 0;
@@ -193,9 +200,23 @@ class NOrderSheet_API {
 			$client['full_shipping_name'] = $order->get_formatted_billing_full_name();
 		}
 
-		$client['full_shipping_address'] = $order->get_formatted_shipping_address();
-		if ( empty( $client['full_shipping_address'] ) ) {
-			$client['full_shipping_address'] = $order->get_formatted_billing_address();
+		$client['shipping_address']        = ! empty( $order->get_shipping_country() ) ? $order->get_shipping_country() : '';
+		$client['shipping_address']        .= ! empty( $order->get_shipping_city() ) ? ', ' . $order->get_shipping_city() : '';
+		$client['shipping_address']        .= ! empty( $order->get_shipping_state() ) ? ', ' . $order->get_shipping_state() : '';
+		$client['shipping_address']        .= ! empty( $order->get_shipping_postcode() ) ? ', ' . $order->get_shipping_postcode() : '';
+		$client['full_shipping_address_1'] = $order->get_shipping_address_1() . '<br>';
+
+		if ( empty( $order->get_shipping_address_1() ) ) {
+			$client['shipping_address']        = ! empty( $order->get_billing_country() ) ? $order->get_billing_country() : '';
+			$client['shipping_address']        .= ! empty( $order->get_billing_city() ) ? ', ' . $order->get_billing_city() : '';
+			$client['shipping_address']        .= ! empty( $order->get_billing_state() ) ? ', ' . $order->get_billing_state() : '';
+			$client['shipping_address']        .= ! empty( $order->get_billing_postcode() ) ? ', ' . $order->get_billing_postcode() : '';
+			$client['full_shipping_address_1'] = $order->get_billing_address_1();
+		}
+
+		$client['full_shipping_address_2'] = $order->get_shipping_address_2();
+		if ( empty( $order->get_shipping_address_2() ) ) {
+			$client['full_shipping_address_2'] = $order->get_billing_address_2();
 		}
 
 		$invoice_number = '';
@@ -209,82 +230,177 @@ class NOrderSheet_API {
 		}
 
 		$scheduled_ship_date = '';
-
-		$values = array(
+		$values              = array(
 			array(
+				'',
 				'Shop Copy',
+				'',
+				'Order #:',
+				$order_id,
+			),
+			array(
+				'',
+				'Order Specifications Sheet',
 				'',
 				'Print Date:',
 				date( 'm/d/y H:i' )
 			),
 			array(
-				'Order Specifications Sheet',
 				'',
+				'Customer',
+				$client['full_billing_name'],
 				'Invoice Number:',
 				$invoice_number,
 			),
 			array(
-				'Customer',
-				$client['full_billing_name'],
+				'',
+				'Phone',
+				$order->get_billing_phone(),
 				'Scheduled Ship Date:',
 				$scheduled_ship_date,
 			),
+			array(),
 			array(
-				'Phone',
-				$order->get_billing_phone(),
-			),
-			array(
+				'',
 				'Shipping contact',
 				$client['full_shipping_name'],
 			),
 			array(
+				'',
 				'Shipping phone',
 				$order->get_meta( 'shipping_phone', true ),
 			),
 			array(
+				'',
 				'Shipping Address',
-				strip_tags( $client['full_shipping_address'] ),
+				strip_tags( $client['full_shipping_address_1'] ),
 			),
-			array(),
 			array(
-				'Specifications',
+				'',
+				'',
+				strip_tags( $client['shipping_address'] ),
 			),
 		);
 
-		$hidden_order_itemmeta = $this->getHiddenFields();
-		$merge_requests[]      = $this->getMergeRequest( 0, 2, 0, 2 );
-		$merge_requests[]      = $this->getMergeRequest( 8, 9, 0, 2 );
+		if ( ! empty( $client['full_shipping_address_2'] ) ) {
+			$values[] = array(
+				'',
+				'Shipping Address 2',
+				strip_tags( $client['full_shipping_address_2'] ),
+			);
 
+			$values[] = array(
+				'',
+				'',
+				strip_tags( $client['shipping_address'] ),
+			);
+		}
+
+		$customer_lines_count = count( $values );
+
+		$values[] = array();
+		$values[] = array(
+			'',
+			'Specifications',
+		);
+
+		$hidden_order_itemmeta = $this->getHiddenFields();
+		$merge_requests[]      = $this->getMergeRequest( 0, 2, 1, 3 );
+		$merge_requests[]      = $this->getMergeRequest( $customer_lines_count, $customer_lines_count + 1, 1, 3 );
 		foreach ( $order->get_items() as $item_id => $item ) {
 
 			$product        = $item->get_product();
 			$variation_name = $item->get_meta( 'finish-option', true );
+			$meta_data      = $item->get_formatted_meta_data( '' );
+			if ( $meta_data ) {
+
+				foreach ( $meta_data as $meta_id => $meta ) {
+					if ( in_array( $meta->key, $hidden_order_itemmeta, true ) || '_' === $meta->display_key[0] ) {
+						unset( $meta_data[ $meta_id ] );
+					}
+				}
+
+				if ( 3 >= count( $meta_data ) ) {
+					foreach ( $meta_data as $meta ) {
+						$variation_name .= ' ' . trim( strip_tags( wp_kses_post( $meta->display_value ) ) );
+					}
+				}
+			}
 
 			$values[] = array(
-				' ' . $item->get_quantity() . '  ' . $product->get_title(),
+				'',
+				' ' . $item->get_quantity() . ' x ' . $product->get_title(),
 				! empty( $variation_name ) ? $variation_name : '',
 			);
 			$items_count ++;
 
-			if ( $meta_data = $item->get_formatted_meta_data( '' ) ) {
-				foreach ( $meta_data as $meta_id => $meta ) {
-					if ( in_array( $meta->key, $hidden_order_itemmeta, true ) ) {
-						continue;
-					}
+			if ( $meta_data ) {
 
-					$values[] = array(
-						'     ' . wp_kses_post( $meta->display_key ),
-						trim( strip_tags( wp_kses_post( $meta->display_value ) ) ),
-					);
-					$items_count ++;
+				if ( 3 < count( $meta_data ) ) {
+					$attributes_showed = false;
+					$attributes        = $this->prepare_reorganized_attributes( $meta_data );
+
+					foreach ( $meta_data as $meta_id => $meta ) {
+
+						if ( isset( $attributes[ $meta->key ] ) ) {
+							if ( ! $attributes_showed ) {
+								foreach ( $attributes as $attribute ) {
+									if ( empty( $attribute ) ) {
+										continue;
+									}
+
+									if ( '_uni_cpo_rush_option' == $attribute->key || '_uni_cpo_door_thickness' == $attribute->key ) {
+										$values[] = array();
+										$items_count ++;
+									}
+
+									$values[] = array(
+										'',
+										'     ' . wp_kses_post( $attribute->display_key ),
+										trim( strip_tags( wp_kses_post( $attribute->display_value ) ) ),
+									);
+									$items_count ++;
+
+									if ( '_uni_cpo_door_thickness' == $attribute->key ) {
+										$values[]    = array();
+										$values[]    = array();
+										$items_count += 2;
+									}
+								}
+
+								$attributes_showed = true;
+							}
+
+							continue;
+						}
+
+						if ( '_uni_cpo_rush_option' == $meta->key || '_uni_cpo_door_thickness' == $meta->key ) {
+							$values[] = array();
+							$items_count ++;
+						}
+
+						$values[] = array(
+							'',
+							'     ' . wp_kses_post( $meta->display_key ),
+							trim( strip_tags( wp_kses_post( $meta->display_value ) ) ),
+						);
+						$items_count ++;
+
+						if ( '_uni_cpo_door_thickness' == $meta->key ) {
+							$values[]    = array();
+							$values[]    = array();
+							$items_count += 2;
+						}
+					}
 				}
+
 			}
 		}
 
-		$total_row                  = $items_count + 9;
-		$values[ $total_row ][0]    = 'DOORS SUMMARY';
-		$values[ ++ $total_row ][0] = 'Door Unit Total Dimensions:';
-		$values[ ++ $total_row ][0] = 'Suggested Rough Opening:';
+		$total_row               = $items_count + $customer_lines_count + 2;
+		$values[ $total_row ]    = array( '', ' DOORS SUMMARY' );
+		$values[ ++ $total_row ] = array( '', ' Door Unit Total Dimensions:' );
+		$values[ ++ $total_row ] = array( '', ' Suggested Rough Opening:' );
 
 		$body   = new Google_Service_Sheets_ValueRange( [
 			'values' => $values
@@ -292,13 +408,14 @@ class NOrderSheet_API {
 		$params = [
 			'valueInputOption' => 'USER_ENTERED'
 		];
-		$range  = 'A1:D' . ( $items_count + 12 );
+		$range  = 'A1:F' . ( $items_count + $customer_lines_count + 5 );
 
 		$result = $this->service->spreadsheets_values->update( $spreadsheet_id, $range,
 			$body, $params );
 
-		$this->setColumnWidths( $spreadsheet_id, 250 );
-		$this->setFontStyles( $spreadsheet_id, $items_count, count( $doors ) );
+		$this->setSize( $spreadsheet_id, 'COLUMNS', 1, 5, 250 );
+		$this->setSize( $spreadsheet_id, 'ROWS', $customer_lines_count, $customer_lines_count + 1, 50 );
+		$this->setFontStyles( $spreadsheet_id, $items_count, $customer_lines_count );
 
 		//Merge cells
 		$batchUpdateRequest = new Google_Service_Sheets_BatchUpdateSpreadsheetRequest();
@@ -364,38 +481,50 @@ class NOrderSheet_API {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param $spreadsheetID
+	 * @param $spreadsheet_id
+	 * @param $start_index
+	 * @param $end_index
+	 * @param string $type
 	 * @param int $size
 	 */
-	public function setColumnWidths( $spreadsheetID, $size = 200 ) {
+	public function setSize( $spreadsheet_id, $type, $start_index, $end_index, $size = 200 ) {
 
-		$dimensionRange = new Google_Service_Sheets_DimensionRange( [
+		$dimension_range = new Google_Service_Sheets_DimensionRange( [
 			'sheetId'    => 0,
-			'dimension'  => 'COLUMNS',
-			'startIndex' => 0,
-			'endIndex'   => 20
+			'dimension'  => $type,
+			'startIndex' => $start_index,
+			'endIndex'   => $end_index,
 		] );
 
-		$dimensionProperties = new Google_Service_Sheets_DimensionProperties( [
+		$dimension_properties = new Google_Service_Sheets_DimensionProperties( [
 			'pixelSize' => $size
 		] );
 
-		$requestBody = [
+		$request_body = [
 			'requests' => [
 				'updateDimensionProperties' => [
-					'range'      => $dimensionRange,
-					'properties' => $dimensionProperties,
+					'range'      => $dimension_range,
+					'properties' => $dimension_properties,
 					'fields'     => 'pixelSize'
 				]
 			]
 		];
 
-		$request = new Google_Service_Sheets_BatchUpdateSpreadsheetRequest( $requestBody );
-		$result  = $this->service->spreadsheets->batchUpdate( $spreadsheetID, $request );
+		$request = new Google_Service_Sheets_BatchUpdateSpreadsheetRequest( $request_body );
+		$result  = $this->service->spreadsheets->batchUpdate( $spreadsheet_id, $request );
 
 	}
 
-	private function setFontStyles( $spreadsheet_id, $items_count, $doors_count ) {
+	/**
+	 * Create styles for columns
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param $spreadsheet_id
+	 * @param $items_count
+	 * @param $customer_lines_count
+	 */
+	private function setFontStyles( $spreadsheet_id, $items_count, $customer_lines_count ) {
 
 		$requests = [
 			//Title
@@ -405,8 +534,8 @@ class NOrderSheet_API {
 						"sheetId"          => 0,
 						"startRowIndex"    => 0,
 						"endRowIndex"      => 2,
-						"startColumnIndex" => 0,
-						"endColumnIndex"   => 2
+						"startColumnIndex" => 1,
+						"endColumnIndex"   => 3,
 					],
 					"cell"  => [
 						"userEnteredFormat" => [
@@ -428,15 +557,39 @@ class NOrderSheet_API {
 					"range" => [
 						"sheetId"          => 0,
 						"startRowIndex"    => 0,
-						"endRowIndex"      => 3,
-						"startColumnIndex" => 2,
-						"endColumnIndex"   => 3
+						"endRowIndex"      => 4,
+						"startColumnIndex" => 3,
+						"endColumnIndex"   => 4
 					],
 					"cell"  => [
 						"userEnteredFormat" => [
 							"horizontalAlignment" => "RIGHT",
 							"textFormat"          => [
 								"bold"     => true,
+								"fontSize" => 10,
+							]
+						]
+					],
+
+					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
+				]
+			] ),
+			//Print date values
+			new Google_Service_Sheets_Request( [
+				'repeatCell' => [
+
+					"range" => [
+						"sheetId"          => 0,
+						"startRowIndex"    => 0,
+						"endRowIndex"      => 4,
+						"startColumnIndex" => 4,
+						"endColumnIndex"   => 5
+					],
+					"cell"  => [
+						"userEnteredFormat" => [
+							"horizontalAlignment" => "LEFT",
+							"textFormat"          => [
+								"bold"     => false,
 								"fontSize" => 10,
 							]
 						]
@@ -452,9 +605,9 @@ class NOrderSheet_API {
 					"range" => [
 						"sheetId"          => 0,
 						"startRowIndex"    => 2,
-						"endRowIndex"      => 7,
-						"startColumnIndex" => 0,
-						"endColumnIndex"   => 1
+						"endRowIndex"      => $customer_lines_count,
+						"startColumnIndex" => 1,
+						"endColumnIndex"   => 2
 					],
 					"cell"  => [
 						"userEnteredFormat" => [
@@ -476,8 +629,8 @@ class NOrderSheet_API {
 						"sheetId"          => 0,
 						"startRowIndex"    => 2,
 						"endRowIndex"      => 7,
-						"startColumnIndex" => 1,
-						"endColumnIndex"   => 2
+						"startColumnIndex" => 2,
+						"endColumnIndex"   => 3
 					],
 					"cell"  => [
 						"userEnteredFormat" => [
@@ -492,16 +645,40 @@ class NOrderSheet_API {
 					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
 				]
 			] ),
+			//Space before Specifications title
+			new Google_Service_Sheets_Request( [
+				'repeatCell' => [
+
+					"range" => [
+						"sheetId"          => 0,
+						"startRowIndex"    => $customer_lines_count,
+						"endRowIndex"      => $customer_lines_count + 1,
+						"startColumnIndex" => 1,
+						"endColumnIndex"   => 2,
+					],
+					"cell"  => [
+						"userEnteredFormat" => [
+							"horizontalAlignment" => "LEFT",
+							"textFormat"          => [
+								"bold"     => false,
+								"fontSize" => 32,
+							]
+						]
+					],
+
+					"fields" => "UserEnteredFormat(horizontalAlignment,textFormat)"
+				]
+			] ),
 			//Specifications title
 			new Google_Service_Sheets_Request( [
 				'repeatCell' => [
 
 					"range" => [
 						"sheetId"          => 0,
-						"startRowIndex"    => 8,
-						"endRowIndex"      => 9,
-						"startColumnIndex" => 0,
-						"endColumnIndex"   => 1
+						"startRowIndex"    => $customer_lines_count + 1,
+						"endRowIndex"      => $customer_lines_count + 2,
+						"startColumnIndex" => 1,
+						"endColumnIndex"   => 2,
 					],
 					"cell"  => [
 						"userEnteredFormat" => [
@@ -522,10 +699,10 @@ class NOrderSheet_API {
 
 					"range" => [
 						"sheetId"          => 0,
-						"startRowIndex"    => 9,
-						"endRowIndex"      => $items_count + 9,
-						"startColumnIndex" => 1,
-						"endColumnIndex"   => 2,
+						"startRowIndex"    => $customer_lines_count + 2,
+						"endRowIndex"      => $items_count + $customer_lines_count + 2,
+						"startColumnIndex" => 2,
+						"endColumnIndex"   => 3,
 					],
 					"cell"  => [
 						"userEnteredFormat" => [
@@ -544,10 +721,10 @@ class NOrderSheet_API {
 				'updateBorders' => [
 					"range" => [
 						"sheetId"          => 0,
-						"startRowIndex"    => 9,
-						"endRowIndex"      => $items_count + 9,
-						"startColumnIndex" => 0,
-						"endColumnIndex"   => 4
+						"startRowIndex"    => $customer_lines_count + 2,
+						"endRowIndex"      => $items_count + $customer_lines_count + 2,
+						"startColumnIndex" => 1,
+						"endColumnIndex"   => 5
 					],
 
 					"top" => [
@@ -576,10 +753,10 @@ class NOrderSheet_API {
 				'updateBorders' => [
 					"range" => [
 						"sheetId"          => 0,
-						"startRowIndex"    => $items_count + 9,
-						"endRowIndex"      => $items_count + 12,
-						"startColumnIndex" => 0,
-						"endColumnIndex"   => 4
+						"startRowIndex"    => $items_count + $customer_lines_count + 2,
+						"endRowIndex"      => $items_count + $customer_lines_count + 4,
+						"startColumnIndex" => 1,
+						"endColumnIndex"   => 5
 					],
 
 					"bottom" => [
@@ -620,17 +797,8 @@ class NOrderSheet_API {
 		return apply_filters(
 			'woocommerce_hidden_order_itemmeta',
 			array(
-				'_qty',
-				'_tax_class',
-				'_product_id',
-				'_variation_id',
-				'_line_subtotal',
-				'_line_subtotal_tax',
-				'_line_total',
-				'_line_tax',
 				'method_id',
 				'cost',
-				'_reduced_stock',
 			)
 		);
 	}
@@ -663,6 +831,33 @@ class NOrderSheet_API {
 
 		return true;
 
+	}
+
+	/**
+	 * Make ordering for multiply array
+	 *
+	 * @param array $meta_data
+	 *
+	 * @return array
+	 */
+	private function prepare_reorganized_attributes( array $meta_data ) {
+
+		$attributes                             = array();
+		$attributes['_uni_cpo_threshold_type']  = array();
+		$attributes['_uni_cpo_threshold_color'] = array();
+		$attributes['_uni_cpo_handle_prep']     = array();
+		$attributes['_uni_cpo_swing_config']    = array();
+		$attributes['_uni_cpo_glass_color_92']  = array();
+		$attributes['_uni_cpo_pivot_placement'] = array();
+		$attributes['_uni_cpo_door_thickness']  = array();
+
+		foreach ( $meta_data as $meta ) {
+			if ( isset( $attributes[ $meta->key ] ) ) {
+				$attributes[ $meta->key ] = $meta;
+			}
+		}
+
+		return $attributes;
 	}
 
 }
